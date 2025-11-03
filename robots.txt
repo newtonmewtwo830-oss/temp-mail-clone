@@ -2,4 +2,4 @@ User-agent: *
 Disallow: /netlify/functions/
 Allow: /
 
-Sitemap: https://yourdomain.com/sitemap.xml
+Sitemap: https://temp-mail-clone.netlify.app/sitemap.xml
