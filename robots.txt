@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /netlify/functions/
+Allow: /
+
+Sitemap: https://yourdomain.com/sitemap.xml

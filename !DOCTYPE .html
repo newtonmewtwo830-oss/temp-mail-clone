@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- SEO -->
+  <title>Temp Mail - Free Disposable Email Service</title>
+  <meta name="description" content="Free temporary email service to create disposable inboxes instantly for quick verification, privacy, and anonymity.">
+  <meta name="keywords" content="temp mail, temporary email, disposable inbox, free email, anonymous email, one-time email">
+  <meta name="author" content="Your Name or Company">
+
+  <!-- Open Graph / Social -->
+  <meta property="og:title" content="Temp Mail - Free Disposable Email">
+  <meta property="og:description" content="Create temporary inboxes instantly for quick verifications and privacy. No registration required.">
+  <meta property="og:image" content="https://yourdomain.com/tempmail-preview.png">
+  <meta property="og:url" content="https://yourdomain.com">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Temp Mail - Free Disposable Email">
+  <meta name="twitter:description" content="Generate temporary email addresses instantly to protect your privacy online.">
+  <meta name="twitter:image" content="https://yourdomain.com/tempmail-preview.png">
+
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="canonical" href="https://yourdomain.com">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Temporary Email</h1>
+
+    <div>
+      <label for="inboxSelect">Select Inbox:</label>
+      <select id="inboxSelect"></select>
+      <button id="newInboxBtn">Generate New</button>
+      <button id="copyBtn">Copy Email</button>
+      <div>Current email: <span id="email">loading...</span></div>
+    </div>
+
+    <div id="inbox">
+      <ul id="emails"></ul>
+    </div>
+  </div>
+
+  <!-- Email Modal -->
+  <div id="emailModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h3 id="modalFrom"></h3>
+      <h4 id="modalSubject"></h4>
+      <p id="modalBody"></p>
+      <div id="attachments" class="attachments"></div>
+      <div class="reply-form">
+        <label for="replyText">Reply:</label>
+        <textarea id="replyText" placeholder="Type your reply here..."></textarea>
+        <button id="sendReplyBtn">Send Reply</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
