@@ -1,128 +1,98 @@
-const INBOX_LIFETIME = 60*60*1000;
-let inboxes = [];
-let currentInboxId = "";
-let emailsData = [];
-let currentEmail = null;
+const emailDisplay = document.getElementById("emailDisplay");
+const inboxSelect = document.getElementById("inboxSelect");
+const messagesList = document.getElementById("messagesList");
+const newEmailBtn = document.getElementById("newEmail");
+const copyBtn = document.getElementById("copyBtn");
 
-const inboxSelect = document.getElementById('inboxSelect');
-const emailSpan = document.getElementById('email');
-const emailsUl = document.getElementById('emails');
-const modal = document.getElementById('emailModal');
-const modalFrom = document.getElementById('modalFrom');
-const modalSubject = document.getElementById('modalSubject');
-const modalBody = document.getElementById('modalBody');
-const attachmentsDiv = document.getElementById('attachments');
-const replyText = document.getElementById('replyText');
-const closeModalBtn = modal.querySelector('.close');
+let account = null;
+let token = null;
 
-document.getElementById('newInboxBtn').addEventListener('click', generateInbox);
-document.getElementById('copyBtn').addEventListener('click', copyEmail);
-closeModalBtn.addEventListener('click', ()=>modal.style.display="none");
-document.getElementById('sendReplyBtn').addEventListener('click', sendReply);
-inboxSelect.addEventListener('change', ()=>{
-  currentInboxId = inboxSelect.value;
-  const inbox = inboxes.find(i=>i.id===currentInboxId);
-  emailSpan.textContent = inbox?.emailAddress || "No inbox";
-  loadInbox();
-});
+// Generate a new temporary email account
+async function generateEmail() {
+  emailDisplay.textContent = "loading...";
 
-async function generateInbox(){
-  const res = await fetch(`/.netlify/functions/getInbox`);
-  const data = await res.json();
-  inboxes.push({id:data.id,emailAddress:data.emailAddress,createdAt:Date.now()});
-  currentInboxId = data.id;
-  updateInboxDropdown();
-  loadInbox();
-}
+  try {
+    // Create a new account on mail.tm
+    const domainRes = await fetch("https://api.mail.tm/domains");
+    const domainData = await domainRes.json();
+    const domain = domainData["hydra:member"][0].domain;
 
-function updateInboxDropdown(){
-  inboxSelect.innerHTML = inboxes.map(i=>`<option value="${i.id}">${i.emailAddress}</option>`).join('');
-  inboxSelect.value = currentInboxId;
-  emailSpan.textContent = inboxes.find(i=>i.id===currentInboxId)?.emailAddress || "No inbox";
-}
+    const username = Math.random().toString(36).substring(2, 10);
+    const password = Math.random().toString(36).substring(2, 15);
+    const address = `${username}@${domain}`;
 
-async function loadInbox(){
-  if(!currentInboxId) return;
-  const res = await fetch(`/.netlify/functions/getEmails?inboxId=${currentInboxId}`);
-  const emails = await res.json();
-  emailsData = emails;
-  emailsUl.innerHTML = '';
-  emails.forEach((mail,index)=>{
-    const li = document.createElement('li');
-    li.className = mail.read?'':'unread';
-    const avatar = `https://i.pravatar.cc/45?img=${index+1}`;
-    li.innerHTML = `<img src="${avatar}" alt="Avatar">
-      <div class="email-content">
-        <span class="email-from">${mail.from||"Unknown Sender"}</span>
-        <span class="email-subject">${mail.subject||"(No Subject)"}</span>
-        <span class="email-body">${mail.body?mail.body.slice(0,50)+'...':"(No Content)"}</span>
-      </div>`;
-    li.addEventListener('click',()=>openModal(mail));
-    emailsUl.appendChild(li);
-  });
-}
-
-function openModal(mail){
-  currentEmail = mail;
-  modalFrom.textContent = mail.from||"Unknown Sender";
-  modalSubject.textContent = mail.subject||"(No Subject)";
-  modalBody.textContent = mail.body||"(No Content)";
-  replyText.value = "";
-  attachmentsDiv.innerHTML = '';
-  if(mail.attachments?.length){
-    mail.attachments.forEach(att=>{
-      if(att.contentType.startsWith('image/')){
-        attachmentsDiv.innerHTML+=`<a href="${att.url}" target="_blank"><img src="${att.url}" alt="${att.name}"></a>`;
-      } else {
-        attachmentsDiv.innerHTML+=`<a href="${att.url}" target="_blank">${att.name}</a>`;
-      }
+    const createRes = await fetch("https://api.mail.tm/accounts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, password })
     });
+
+    if (!createRes.ok) throw new Error("Failed to create mailbox");
+
+    // Login to get JWT token
+    const tokenRes = await fetch("https://api.mail.tm/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, password })
+    });
+
+    const tokenData = await tokenRes.json();
+    token = tokenData.token;
+    account = address;
+
+    emailDisplay.textContent = address;
+    fetchEmails();
+
+  } catch (err) {
+    console.error(err);
+    emailDisplay.textContent = "Error generating email.";
   }
-  modal.style.display="flex";
-  markEmailRead(mail.id);
 }
 
-async function markEmailRead(emailId){
-  await fetch(`/.netlify/functions/markRead`,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({emailId})
-  });
-  loadInbox();
+// Fetch latest emails
+async function fetchEmails() {
+  if (!token) return;
+
+  messagesList.innerHTML = "<li>Loading messages...</li>";
+
+  try {
+    const res = await fetch("https://api.mail.tm/messages", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await res.json();
+    const messages = data["hydra:member"];
+
+    if (!messages.length) {
+      messagesList.innerHTML = "<li>No messages yet.</li>";
+      return;
+    }
+
+    messagesList.innerHTML = messages.map(msg => `
+      <li>
+        <strong>From:</strong> ${msg.from.address}<br>
+        <strong>Subject:</strong> ${msg.subject}<br>
+        <small>${new Date(msg.createdAt).toLocaleString()}</small>
+      </li>
+    `).join("");
+
+  } catch (err) {
+    console.error(err);
+    messagesList.innerHTML = "<li>Failed to load emails.</li>";
+  }
 }
 
-async function sendReply(){
-  if(!currentEmail) return alert("No email selected");
-  const text = replyText.value;
-  if(!text) return alert("Type a reply!");
-  await fetch(`/.netlify/functions/sendReply`,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      inboxId:currentInboxId,
-      to:currentEmail.from,
-      subject:"Re: "+(currentEmail.subject||""),
-      body:text
-    })
-  });
-  alert("Reply sent!");
-  replyText.value="";
-  modal.style.display="none";
+// Copy email to clipboard
+function copyEmail() {
+  if (!account) return;
+  navigator.clipboard.writeText(account);
+  alert("Email copied: " + account);
 }
 
-function copyEmail(){
-  navigator.clipboard.writeText(emailSpan.textContent).then(()=>alert("Copied: "+emailSpan.textContent));
-}
+// Event listeners
+newEmailBtn.addEventListener("click", generateEmail);
+copyBtn.addEventListener("click", copyEmail);
+inboxSelect.addEventListener("change", fetchEmails);
 
-// Auto-delete expired inboxes
-setInterval(async ()=>{
-  const now = Date.now();
-  for(let i=inboxes.length-1;i>=0;i--){
-    if(now - inboxes[i].createdAt > INBOX_LIFETIME){
-      await fetch(`/.netlify/functions/deleteInbox`,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({inboxId: inboxes[i].id})
-      });
-      inboxes.splice(i,1);
-      if(currentInboxId===inboxes[i]?.id)
+// Generate the first email automatically
+generateEmail();
